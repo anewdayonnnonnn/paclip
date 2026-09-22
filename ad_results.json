@@ -1,0 +1,25 @@
+{
+  "dataset": "PneumoniaMNIST (224, normal vs pneumonia)",
+  "metrics": "image-level AUROC",
+  "methods": {
+    "ours_text_adapter_BiomedCLIP": {
+      "auroc": 0.9672,
+      "ap": 0.9783,
+      "f1": 0.9323,
+      "acc": 0.9135,
+      "supervision": "supervised"
+    },
+    "PatchCore": {
+      "auroc": 0.7725,
+      "ap": 0.7896,
+      "f1": 0.8245,
+      "supervision": "one-class"
+    },
+    "PaDiM": {
+      "auroc": 0.6787,
+      "ap": 0.7094,
+      "f1": 0.8018,
+      "supervision": "one-class"
+    }
+  }
+}

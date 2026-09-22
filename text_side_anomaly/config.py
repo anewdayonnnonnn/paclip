@@ -1,0 +1,55 @@
+"""超参数配置（brain MRI 异常检测）。
+
+文档要求：
+- bottleneck 维度从 {64, 128, 256} 做消融；
+- 残差比例 λ_t 建议初始 0.05~0.10；
+- 只训练 W_down、W_up（文本编码器主干冻结）；
+- 文本侧损失 margin m 为允许的最大相似度。
+"""
+
+from dataclasses import dataclass, field
+from typing import List, Optional
+
+
+@dataclass
+class Config:
+    # ---- 主干模型 ----
+    # open_clip 的 hf-hub: 前缀（配合 HF_ENDPOINT=https://hf-mirror.com 使用镜像）
+    model_name: str = "hf-hub:microsoft/BiomedCLIP-PubMedBERT_256-vit_base_patch16_224"
+    image_size: int = 224
+    text_hidden: int = 512           # BiomedCLIP 投影维度（Adapter 作用于此）
+    visual_hidden: int = 768         # ViT 隐层维度
+    max_text_len: int = 256
+
+    # ---- 残差文本 Adapter ----
+    bottleneck: int = 128            # 消融 {64, 128, 256}
+    lambda_t: float = 0.05           # 初始 0.05~0.10
+    lambda_t_learnable: bool = True
+    adapter_dropout: float = 0.0
+
+    # ---- 三层提示词 ----
+    levels: List[str] = field(default_factory=lambda: ["1", "2", "3"])
+    fusion_learnable: bool = True    # 三层融合权重是否可学习
+
+    # ---- 对齐与损失 ----
+    margin: float = 0.3             # 文本侧损失：允许的最大相似度 m
+    temperature: float = 0.07       # 对齐 logits 温度
+    w_text: float = 1.0
+    w_global: float = 1.0
+    w_local: float = 1.0
+
+    # ---- 训练 ----
+    lr: float = 1e-4
+    weight_decay: float = 1e-5
+    epochs: int = 20
+    batch_size: int = 8
+    num_workers: int = 4
+    device: str = "cuda"
+
+    # ---- 数据 ----
+    data_root: str = "data"              # 含 normal/ 与 abnormal/ 子目录
+    mask_root: Optional[str] = None      # 病灶掩码目录（训练局部对齐用）
+    data_format: str = "volume"          # "volume"(3D .nii.gz) 或 "slice"(2D png)
+    modality: Optional[int] = None       # 4D 体积时选用的通道索引；None 为单模态
+    slice_strategy: str = "lesion"       # 3D 切片策略：lesion / middle / random
+    normalize: bool = True               # 是否做百分位强度归一化
