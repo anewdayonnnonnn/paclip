@@ -25,6 +25,8 @@ import torch
 from PIL import Image
 from torch.utils.data import Dataset
 
+from .roi import roi_from_gray
+
 _MEAN = (0.48145466, 0.4578275, 0.40821073)
 _STD = (0.26862954, 0.26130258, 0.27577711)
 
@@ -103,7 +105,11 @@ class SliceAnomalyDataset(Dataset):
             mask = torch.from_numpy((np.asarray(m, dtype=np.float32) / 255.0 > 0.5).astype(np.float32))
 
         return {"image": image, "label": torch.tensor(label, dtype=torch.long),
-                "mask": mask, "path": path}
+                "mask": mask, "roi": self._roi(x), "path": path}
+
+    def _roi(self, x: np.ndarray) -> torch.Tensor:
+        """由图像强度给出解剖 ROI（(grid, grid) 布尔），见 roi.py。"""
+        return torch.from_numpy(roi_from_gray(x, grid=self.grid))
 
 
 class VolumeAnomalyDataset(Dataset):
@@ -191,5 +197,7 @@ class VolumeAnomalyDataset(Dataset):
             )
             mask = torch.from_numpy((np.asarray(m, dtype=np.float32) / 255.0 > 0.5).astype(np.float32))
 
+        roi = roi_from_gray(np.asarray(s, dtype=np.float32) / 255.0, grid=self.grid)
+
         return {"image": image, "label": torch.tensor(label, dtype=torch.long),
-                "mask": mask, "path": path}
+                "mask": mask, "roi": torch.from_numpy(roi), "path": path}

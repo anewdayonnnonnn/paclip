@@ -45,14 +45,26 @@ def global_alignment_loss(cls_logits: torch.Tensor, labels: torch.Tensor) -> tor
 def local_alignment_loss(
     patch_logits: torch.Tensor,
     masks: torch.Tensor,
+    roi: Optional[torch.Tensor] = None,
 ) -> torch.Tensor:
     """局部对齐：patch 对 normal/abnormal 的逐像素交叉熵。
 
     Args:
         patch_logits: (B, 2, h, w) patch 级 logits。
         masks: (B, h, w) 病灶掩码（0/1，已下采样到 patch 网格）。
+        roi: (B, h, w) 解剖 ROI（布尔）。给了就只在 ROI 内算损失——背景 patch 上的
+            监督对定位没有意义，还会稀释正常锚点（让它去代表大片空气）。
     """
-    return F.cross_entropy(patch_logits, masks.long())
+    if roi is None:
+        return F.cross_entropy(patch_logits, masks.long())
+
+    b, c, h, w = patch_logits.shape
+    logits = patch_logits.permute(0, 2, 3, 1).reshape(-1, c)   # (B*h*w, 2)
+    target = masks.reshape(-1).long()
+    sel = roi.reshape(-1) > 0
+    if sel.sum() == 0:
+        return F.cross_entropy(patch_logits, masks.long())
+    return F.cross_entropy(logits[sel], target[sel])
 
 
 class TotalLoss(nn.Module):
@@ -77,6 +89,7 @@ class TotalLoss(nn.Module):
         outputs: Dict[str, torch.Tensor],
         labels: torch.Tensor,
         masks: Optional[torch.Tensor] = None,
+        roi: Optional[torch.Tensor] = None,
     ) -> Dict[str, torch.Tensor]:
         loss_text = text_separation_loss(anchors, self.margin)
         loss_global = global_alignment_loss(outputs["cls_logits"], labels)
@@ -84,7 +97,7 @@ class TotalLoss(nn.Module):
         loss_dict = {"text": loss_text, "global": loss_global}
 
         if masks is not None:
-            loss_local = local_alignment_loss(outputs["patch_logits"], masks)
+            loss_local = local_alignment_loss(outputs["patch_logits"], masks, roi)
             loss_dict["local"] = loss_local
         else:
             loss_local = torch.zeros((), device=loss_text.device)

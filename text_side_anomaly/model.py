@@ -86,11 +86,29 @@ class TextSideAnomalyModel(nn.Module):
     # 图像侧
     # ------------------------------------------------------------------ #
     def encode_image(self, pixel_values) -> Tuple[torch.Tensor, torch.Tensor, Tuple[int, int]]:
-        # 只做一次视觉前向，同时得到 CLS 与 patch 特征
-        feats = self.clip.visual.trunk.forward_features(pixel_values)  # (B, 1+N, 768)
-        proj = F.normalize(self.clip.visual.head(feats), dim=-1)       # (B, 1+N, 512)
-        f_cls = proj[:, 0]                                             # (B, 512)
-        f_patch = proj[:, 1:]                                          # (B, N, 512)
+        """只做一次视觉前向，得到 CLS 与 patch 特征。
+
+        ms_layers 非空时走多尺度：patch 特征取多个 ViT block（含归一化后的中间层）
+        投影后平均。CLS 仍取末层（forward_intermediates 的中间层不含 CLS token，
+        正好让图像级判断这条路径与单层版完全一致，改动只作用于定位）。
+        """
+        trunk = self.clip.visual.trunk
+        head = self.clip.visual.head
+        ms_layers = getattr(self.cfg, "ms_layers", None)
+
+        if ms_layers:
+            final, inter = trunk.forward_intermediates(
+                pixel_values, indices=list(ms_layers), norm=True, output_fmt="NLC"
+            )
+            f_cls = F.normalize(head(final[:, 0]), dim=-1)              # (B, 512)
+            proj = torch.stack([head(t) for t in inter], dim=0)         # (L, B, N, 512)
+            f_patch = F.normalize(proj.mean(dim=0), dim=-1)             # (B, N, 512)
+        else:
+            feats = trunk.forward_features(pixel_values)                # (B, 1+N, 768)
+            proj = F.normalize(head(feats), dim=-1)                     # (B, 1+N, 512)
+            f_cls = proj[:, 0]                                          # (B, 512)
+            f_patch = proj[:, 1:]                                       # (B, N, 512)
+
         h = w = int(f_patch.size(1) ** 0.5)
         return f_cls, f_patch, (h, w)
 

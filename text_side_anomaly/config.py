@@ -31,6 +31,11 @@ class Config:
     levels: List[str] = field(default_factory=lambda: ["1", "2", "3"])
     fusion_learnable: bool = True    # 三层融合权重是否可学习
 
+    # ---- 多尺度 patch 特征 ----
+    # ViT block 索引（0 起，共 12 层）。取中间层与末层融合，缓解末层语义化过重、
+    # 跨 patch 区分度低（实测跨 patch 标准差仅 0.025）。空列表 = 关闭，退回原版单层行为。
+    ms_layers: List[int] = field(default_factory=lambda: [5, 8, 11])
+
     # ---- 对齐与损失 ----
     margin: float = 0.3             # 文本侧损失：允许的最大相似度 m
     temperature: float = 0.07       # 对齐 logits 温度
