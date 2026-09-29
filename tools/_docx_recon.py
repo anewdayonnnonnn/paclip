@@ -5,7 +5,7 @@ import zipfile
 
 sys.stdout.reconfigure(encoding="utf-8")
 
-PATH = "文本测改进方法.docx"
+PATH = "docs/文本测改进方法.docx"
 with zipfile.ZipFile(PATH) as z:
     names = z.namelist()
     xml = z.read("word/document.xml").decode("utf-8")

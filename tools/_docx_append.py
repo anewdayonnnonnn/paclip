@@ -14,7 +14,7 @@ import shutil
 import sys
 import zipfile
 
-DOCX = "文本测改进方法.docx"
+DOCX = "docs/文本测改进方法.docx"   # 改动存档已归到 docs/
 HINT = '<w:rFonts w:hint="eastAsia"/>'
 PARA = ('<w:p><w:pPr><w:rPr>' + HINT + '</w:rPr></w:pPr>'
         '<w:r><w:rPr>' + HINT + '</w:rPr><w:t xml:space="preserve">{}</w:t></w:r></w:p>')
