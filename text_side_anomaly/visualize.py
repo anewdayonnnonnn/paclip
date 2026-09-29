@@ -97,10 +97,16 @@ class AmapCalibration:
         return cls(lo, hi if hi - lo > 1e-6 else lo + 1e-6)
 
     @classmethod
-    def fit_from_stats(cls, amaps: np.ndarray) -> "AmapCalibration":
-        """无正常切片时：在混合分布上用分位数标定，同样稳健。"""
+    def fit_from_stats(cls, amaps: np.ndarray,
+                       lo_pct: float = 50.0, hi_pct: float = 99.5) -> "AmapCalibration":
+        """无正常切片时：在混合分布上用分位数标定，同样稳健。
+
+        lo_pct/hi_pct 可调，便于按数据集调「多冷/多热」；默认值与首版实现一致。
+        """
         flat = np.asarray(amaps, dtype=np.float64).reshape(-1)
-        return cls(float(np.percentile(flat, 50)), float(np.percentile(flat, 99.5)))
+        lo = float(np.percentile(flat, lo_pct))
+        hi = float(np.percentile(flat, hi_pct))
+        return cls(lo, hi if hi - lo > 1e-6 else lo + 1e-6)
 
     def __call__(self, amap: np.ndarray) -> np.ndarray:
         """amap → [0, 1]（截断，不逐图归一化）。"""
@@ -164,6 +170,14 @@ def colorize(norm01: np.ndarray, gray: np.ndarray, gt: Optional[np.ndarray] = No
         e = np.asarray(Image.fromarray(gt.astype(np.uint8)).filter(ImageFilter.FIND_EDGES),
                        dtype=np.float32)
         out[e > 30] = [0, 255, 0]
+        # 哨兵：传了 gt 却一条边都没画出来，多半是值域不对。FIND_EDGES 之后用 e>30 取边，
+        # 要求输入是 0/255 的 uint8；喂 0/1 的 mask 时 e 最大只有 8，绿轮廓会**静默消失**
+        # （脑线 make_heatmaps.py / eval_final.py 传的正是 0/1）。只提示，不改任何像素。
+        if not np.any(e > 30):
+            import sys
+            print("[visualize.colorize] 传入了 gt 但没有任何边缘超过阈值：绿轮廓为空。"
+                  "请确认 gt 是 0/255 的 uint8 —— 0/1 的 mask 会静默画不出线。",
+                  file=sys.stderr)
     return out
 
 

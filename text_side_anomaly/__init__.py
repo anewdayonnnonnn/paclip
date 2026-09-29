@@ -8,6 +8,11 @@
 from .config import Config
 from .prompts import ThreeLevelPrompts, DEFAULT_BRAIN_MRI_PROMPTS, build_text_anchors
 from .text_adapter import ResidualTextAdapter
+from .inlayer_adapter import (
+    InLayerBottleneckAdapter,
+    OrganAdapterBank,
+    install_inlayer_adapters,
+)
 from .model import TextSideAnomalyModel
 from .losses import (
     text_separation_loss,
@@ -24,6 +29,9 @@ __all__ = [
     "DEFAULT_BRAIN_MRI_PROMPTS",
     "build_text_anchors",
     "ResidualTextAdapter",
+    "InLayerBottleneckAdapter",
+    "OrganAdapterBank",
+    "install_inlayer_adapters",
     "TextSideAnomalyModel",
     "text_separation_loss",
     "global_alignment_loss",

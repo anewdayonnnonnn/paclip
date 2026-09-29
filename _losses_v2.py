@@ -110,39 +110,10 @@ def local_alignment_loss(
     return F.cross_entropy(logits[sel], target[sel])
 
 
-def per_level_local_loss(
-    patch_logits_per_level: torch.Tensor,
-    masks: torch.Tensor,
-    roi: Optional[torch.Tensor] = None,
-) -> torch.Tensor:
-    """每一层各自的定位损失：要求第 l 层的 patch logits **自己**就能定位。
-
-    动机（docx 改动 11 实测）：d_diversity_loss 是纯"要不一样"的目标，没有任何质量项
-    约束它往哪个方向分歧，于是它把三层推成"不一样地差"——只开②时 L1 的 Dice 从 0.6215
-    掉到 0.4742。融合（softmax 凸组合）能平均掉一部分独立误差（集成增益 +0.006 → +0.048），
-    但补不平单层的损失，净效果仍是掉点。
-
-    只监督融合结果时，单层可以烂得任意 —— 只要加权后是好的。这一项给每层各自加定位
-    监督，把②的"不一样"约束在"各自都还准"的基础上。与②在梯度上是对抗的（质量要把
-    三层拉向同一张正确的图，多样性要把它们推开），平衡点是这项超参要扫的东西。
-
-    Args:
-        patch_logits_per_level: (B, L, 2, h, w) 逐层 patch logits。
-        masks: (B, h, w) 病灶掩码（0/1）。
-        roi: (B, h, w) 解剖 ROI（布尔），可选。
-    """
-    n_levels = patch_logits_per_level.shape[1]
-    return torch.stack([
-        local_alignment_loss(patch_logits_per_level[:, l], masks, roi)
-        for l in range(n_levels)
-    ]).mean()
-
-
 class TotalLoss(nn.Module):
-    """总损失 = w_text·文本分离 + w_global·全局对齐 + w_local·局部对齐
-    + w_div·多层多样性 + w_level·逐层定位。
+    """总损失 = w_text·文本分离 + w_global·全局对齐 + w_local·局部对齐 + w_div·多层多样性。
 
-    margin_lo / w_div / w_level 默认 None / 0.0 / 0.0，即旧行为，保证历史实验可比。
+    margin_lo / w_div 默认 None / 0.0，即旧行为，保证历史实验可比。
     """
 
     def __init__(
@@ -154,7 +125,6 @@ class TotalLoss(nn.Module):
         margin_lo: Optional[float] = None,
         margin_d: float = 0.7,
         w_div: float = 0.0,
-        w_level: float = 0.0,
     ):
         super().__init__()
         self.margin = margin
@@ -164,7 +134,6 @@ class TotalLoss(nn.Module):
         self.margin_lo = margin_lo
         self.margin_d = margin_d
         self.w_div = w_div
-        self.w_level = w_level
 
     def forward(
         self,
@@ -188,20 +157,11 @@ class TotalLoss(nn.Module):
         loss_div = d_diversity_loss(anchors, self.margin_d)
         loss_dict["div"] = loss_div
 
-        # 逐层定位：约束②的分歧方向（见 per_level_local_loss 的 docstring）
-        loss_level = torch.zeros((), device=loss_text.device)
-        if masks is not None and "patch_logits_per_level" in outputs:
-            loss_level = per_level_local_loss(
-                outputs["patch_logits_per_level"], masks, roi
-            )
-            loss_dict["level"] = loss_level
-
         total = (
             self.w_text * loss_text
             + self.w_global * loss_global
             + self.w_local * loss_local
             + self.w_div * loss_div
-            + self.w_level * loss_level
         )
         loss_dict["total"] = total
         return loss_dict

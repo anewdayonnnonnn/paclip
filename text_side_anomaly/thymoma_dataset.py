@@ -210,3 +210,35 @@ def make_slice_splits(
         name: [f for f in files if os.path.basename(f)[:3] in cset]
         for name, cset in sets.items()
     }
+
+
+def case_ids(files: List[str]) -> set:
+    """文件名前 3 位 = 患者编号（见模块 docstring 的编号约定）。"""
+    return {os.path.basename(f)[:3] for f in files}
+
+
+def sample_support(files: List[str], k: Optional[int], seed: int = 0) -> List[str]:
+    """从给定划分里按病例抽 k 张切片；k=None 或 k≥len(files) 表示全用。
+
+    按病例抽（而不是按切片）—— 同一病例的切片高度相关，混着抽会让"5 张"实际只
+    覆盖 2~3 个病例，把有效样本数虚高。先每病例取 1 张轮转，保证病例覆盖尽量广。
+
+    small-sample 训练与对照实验（fewshot_run.py / thymoma_local.py --n-support）共用，
+    放在这里而不是各自的脚本里，免得两份实现漂移。
+    """
+    if k is None or k >= len(files):
+        return list(files)
+    rng = np.random.RandomState(seed)
+    by_case: dict = {}
+    for f in files:
+        by_case.setdefault(os.path.basename(f)[:3], []).append(f)
+    cases = sorted(by_case)
+    rng.shuffle(cases)
+    picked: List[str] = []
+    for rnd in range(max(len(v) for v in by_case.values())):
+        for c in cases:
+            if len(picked) >= k:
+                return picked
+            if rnd < len(by_case[c]):
+                picked.append(by_case[c][rnd])
+    return picked[:k]

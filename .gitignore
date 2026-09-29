@@ -24,3 +24,19 @@ Thumbs.db
 # ---- 本地临时诊断产物（含患者 CT 切片，不上传）----
 _cmp_*.png
 _diag_*.py
+# 例外：这个诊断脚本只读 ckpt 算余弦，不含影像，是改动 17 附录的证据，要传
+!_diag_inlayer_cos.py
+
+# ---- 热力图（在患者 CT 切片上叠加热区与 GT 轮廓，属患者衍生影像，不上传）----
+heatmaps*/
+heatmaps_thymoma/
+# 注：heatmaps_thymoma/ 与 heatmaps/ 已有 19 张在历史提交里，此处只挡新增
+
+# ---- 训练日志 / 临时产物的打包 ----
+*.log
+_upload_proj.tgz
+_probe_small.txt
+_docx_all.txt
+
+# ---- 服务器连接助手（含 AutoDL 主机与端口，不上传）----
+_remote.py
