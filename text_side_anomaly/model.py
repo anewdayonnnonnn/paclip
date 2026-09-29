@@ -118,18 +118,27 @@ class TextSideAnomalyModel(nn.Module):
     def load_compat(self, path, map_location="cpu", verbose: bool = True) -> None:
         """宽松加载。
 
-        层内适配器会新增 `inlayer_bank.*` 键，老 ckpt（thymoma_*.pt，改动 7~16 产的）
-        没有它们，用 `strict=True` 会直接报 Missing key。这里用 `strict=False` 并给出
-        提示：缺 inlayer_bank 属预期，缺别的键才要警惕。
+        这里用 `strict=False` 并给出提示，因为缺键大多属预期：
+          - 缺 `inlayer_bank.*`：老 ckpt（改动 7~16 产的）没有层内适配器，从零起
+          - 缺 `clip.*`：ckpt 被 `tools/strip_ckpt.py` 剥过主干（784MB → 0.5MB）。
+            主干是本模型自己按 `cfg.model_name` 从 HuggingFace 建的，逐位相同，不缺东西。
+        缺这两类之外的键才要警惕。
         """
-        sd = torch.load(path, map_location=map_location)
+        # weights_only=False 必须显式给：torch 2.6 起该默认值从 False 翻成 True，
+        # 而部分 ckpt 是 legacy .tar 格式存的，True 会直接抛 RuntimeError。
+        sd = torch.load(path, map_location=map_location, weights_only=False)
         missing, unexpected = self.load_state_dict(sd, strict=False)
         if verbose:
             inlayer_missing = [k for k in missing if k.startswith("inlayer_bank")]
-            others = [k for k in missing if not k.startswith("inlayer_bank")]
+            clip_missing = [k for k in missing if k.startswith("clip.")]
+            others = [k for k in missing
+                      if not k.startswith("inlayer_bank") and not k.startswith("clip.")]
             if inlayer_missing:
                 print(f"[load] 缺 {len(inlayer_missing)} 个层内适配器键（老 ckpt 属预期，"
                       f"从零初始化开始）")
+            if clip_missing:
+                print(f"[load] 缺 {len(clip_missing)} 个主干键 —— ckpt 已剥离冻结主干"
+                      f"（strip_ckpt.py 产），主干由模型自己建，正常")
             if others:
                 print(f"[load] ⚠ 缺 {len(others)} 个非适配器键：{others[:4]}"
                       f"{' …' if len(others) > 4 else ''}")

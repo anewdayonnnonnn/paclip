@@ -23,12 +23,25 @@ text_side_anomaly/       核心包（模型 / 损失 / 数据 / 指标 / 可视�
 thymoma_local.py         ★ 胸腺瘤入口：训练 + 定位评估 + 出热力图
 fewshot_run.py           ★ 小样本 × Adapter 插法四组对照（断点续跑）
 brain/                   脑支线脚本（数据不在仓库里，见下）
-tools/                   开发与运维工具
-docs/                    方法文档与改动存档
+tools/                   开发运维工具、诊断脚本、strip_ckpt.py
+docs/                    方法文档 + 改动存档
 results/                 指标表、结果 JSON、训练结果解包
 ```
 
 `★` = 直接可运行的入口，留在根目录（它们按相对路径找 `thymoma_slices/`，移走就跑不起来）。
+
+**以下只在本机、不进仓库**（`.gitignore` 挡住）：
+
+```
+ckpt/        21 个胸腺实验 ckpt。⚠ 已用 tools/strip_ckpt.py 剥掉冻结主干，
+             748MB -> 0.5MB。传 --out / --eval-only 时要写全路径，例如
+                 python thymoma_local.py --eval-only --out ckpt/thymoma_local.pt
+fewshot_ckpt/  小样本四组对照的 ckpt（同样已剥离主干）
+heatmaps/      36 个历史热力图目录（在患者影像上叠加，属患者衍生数据）
+logs/          各次训练的原始日志
+figures/       对比图
+docs/备份/     每次追加改动时自动生成的 docx 备份
+```
 
 <details>
 <summary>各文件一句话说明</summary>
@@ -101,9 +114,14 @@ python brain/eval_final.py
 数据 `thymoma_slices/`（由 `tools/prepare_thymoma_slices.py` 从 3D 体积切出）。
 
 ```bash
-python thymoma_local.py --seed 0                    # 训练 + 评估 + 出图
+python thymoma_local.py --seed 0 --out ckpt/thymoma_local.pt
+python thymoma_local.py --eval-only --out ckpt/thymoma_local.pt      # 只评估 + 出图
 python fewshot_run.py --groups A,B,C,D --seeds 0,1,2 --cooldown 0   # 四组对照
 ```
+
+ckpt 是 `model.state_dict()` 全量保存，含冻结主干（748MB）。**跑完用
+`tools/strip_ckpt.py --in-place ckpt/*.pt` 剥成 0.5MB** —— 主干逐位相同、随时能从 HF 重下，
+不剥就是几十份 748MB 堆在盘上。加载走 `model.load_compat()`，它认得缺 `clip.*` 的情况。
 
 ---
 

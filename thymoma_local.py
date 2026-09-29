@@ -547,11 +547,10 @@ def main():
     ckpt = args.out
 
     if args.eval_only:
-        if args.inlayer:
-            # 老 ckpt（改动 7~16 产的）没有 inlayer_bank.* 键，严格加载会直接报 Missing key
-            model.load_compat(ckpt, map_location=device)
-        else:
-            model.load_state_dict(torch.load(ckpt, map_location=device))
+        # 一律走宽松加载。两种缺键都属预期：
+        #   - 老 ckpt 没有 inlayer_bank.*
+        #   - strip_ckpt.py 剥过主干的 ckpt 没有 clip.*（784MB -> 0.5MB，主干模型自己建）
+        model.load_compat(ckpt, map_location=device)
         print(f"已加载 checkpoint -> {ckpt}")
     else:
         trainable = [p for p in model.parameters() if p.requires_grad]

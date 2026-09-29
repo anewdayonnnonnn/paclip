@@ -26,7 +26,8 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     cfg = Config(device=str(device))
     model = TextSideAnomalyModel(cfg).to(device)
-    model.load_state_dict(torch.load("thymoma_local.pt", map_location=device))
+    # 宽松加载：ckpt 已剥离冻结主干（缺 clip.* 属预期）
+    model.load_compat("ckpt/thymoma_local.pt", map_location=device)
     model.eval()
     anchors = THYMOMA_PROMPTS
     enc = model.encode_anchors(anchors)
