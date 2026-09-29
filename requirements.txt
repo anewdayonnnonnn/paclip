@@ -1,0 +1,26 @@
+# 文本侧医学图像异常检测 —— 依赖
+#
+# 安装：
+#     pip install -r requirements.txt
+#
+# 关键版本约束（都踩过，别随便放开）：
+
+torch>=2.4                       # 2.4.0+cu121 与 2.5.1+cu124 上都验证过
+torchvision
+
+# ⚠ transformers 必须 <5。
+#   transformers 5.x 要求 torch>=2.5，在 torch 2.4 上会**静默关掉整个 PyTorch 后端**
+#   （日志里只有一行 "Disabling PyTorch because PyTorch >= 2.5 is required"），
+#   然后 open_clip 建文本塔时抛 AutoModel requires the PyTorch library。
+transformers==4.46.3
+
+open_clip_torch==3.3.0           # BiomedCLIP 走 hf-hub 加载
+huggingface_hub
+timm                             # open_clip 的视觉塔依赖
+
+numpy
+scipy
+scikit-learn                     # metrics.py 的 AUROC/AP
+scikit-image
+Pillow
+matplotlib                       # visualize.colorize 画热力图要用

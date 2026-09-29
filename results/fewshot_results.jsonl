@@ -1,0 +1,2 @@
+{"mode": "output", "k": null, "seed": 0, "n_support": 2863, "n_trainable": 132740, "loss": 0.1242, "dice": 0.6233, "auroc": 0.9794, "iou": 0.4527}
+{"mode": "output", "k": null, "seed": 1, "n_support": 2863, "n_trainable": 132740, "loss": 0.12338919039815664, "dice": 0.6249268576896962, "auroc": 0.9794391675503767, "iou": 0.4544680849774559}

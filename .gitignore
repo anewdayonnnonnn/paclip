@@ -35,8 +35,18 @@ heatmaps_thymoma/
 # ---- 训练日志 / 临时产物的打包 ----
 *.log
 _upload_proj.tgz
+*.tgz
 _probe_small.txt
 _docx_all.txt
 
-# ---- 服务器连接助手（含 AutoDL 主机与端口，不上传）----
+# ---- checkpoint 备份（.pt.bak 绕得过上面的 *.pt，实测有一个 748MB）----
+*.bak
+
+# ---- docx 自动备份（每次追加改动都生成一份，累计 21MB）----
+文本测改进方法_备份_*.docx
+
+# ---- 服务器连接助手（含主机与端口，不上传）----
 _remote.py
+
+# ---- 第三方参考实现（PA-CLIP 原仓库副本，不是本项目代码）----
+PA-CLIP-main/

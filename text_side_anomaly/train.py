@@ -21,6 +21,21 @@ from .model import TextSideAnomalyModel
 from .prompts import DEFAULT_BRAIN_MRI_PROMPTS
 
 
+def set_seed(seed: int) -> None:
+    """固定随机性。
+
+    原本没有种子 → 权重初始化与 shuffle 全随机。实测同数据同超参重训两遍，
+    基线 Dice 差 0.08（0.5535 vs 0.4728），比要比较的那些改进幅度还大，
+    所以凡是要对比的实验都必须显式给定种子。
+    """
+    import random
+
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+
+
 def build_tokenizer(cfg: Config):
     import open_clip
 
@@ -66,6 +81,8 @@ def evaluate(model, loader, anchors, cfg, device):
 
 
 def main(args):
+    if args.seed is not None:
+        set_seed(args.seed)
     cfg = Config(
         data_root=args.data_root,
         mask_root=args.mask_root or None,
@@ -77,6 +94,12 @@ def main(args):
         batch_size=args.batch_size,
         lr=args.lr,
     )
+    if args.ms_layers is not None:
+        raw = args.ms_layers.strip()
+        cfg.ms_layers = ([] if raw.lower() in ("", "none", "off")
+                         else [int(x) for x in raw.split(",") if x.strip()])
+    print(f"[train] ms_layers={cfg.ms_layers} "
+          f"({'单层/基线' if not cfg.ms_layers else '多尺度'})")
     device = torch.device(cfg.device if torch.cuda.is_available() else "cpu")
     cfg.device = str(device)
 
@@ -153,4 +176,11 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int, default=8)
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--save_dir", type=str, default=None)
+    parser.add_argument("--ms-layers", type=str, default=None,
+                        help="多尺度 patch 特征用的 ViT block 索引，逗号分隔（如 5,8,11）；"
+                             "none/空 = 单层（原版）。**不传则用 Config 的默认值**，"
+                             "而 Config 默认已从单层改成 [5,8,11] —— 也就是说现在直接跑"
+                             "train.py 得到的是多尺度模型，不是基线。要基线必须显式 none。")
+    parser.add_argument("--seed", type=int, default=None,
+                        help="固定随机种子；对比实验必须给（不给则每跑一次都不一样）")
     main(parser.parse_args())
